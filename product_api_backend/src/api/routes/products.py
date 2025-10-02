@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
 from sqlalchemy.orm import Session
 
 from ...schemas.product import ProductOut, ProductCreate, ProductUpdate
+from ...schemas.stats import TotalBalanceOut
 from ...crud import product as crud_product
 from ..deps import get_db
 
@@ -118,3 +119,29 @@ def delete_product(
     if deleted is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found")
     return None
+
+
+# PUBLIC_INTERFACE
+@router.get(
+    "/total-balance",
+    response_model=TotalBalanceOut,
+    summary="Get total balance of stock",
+    description=(
+        "Calculate and return the total monetary value of the stock as the sum of price * quantity "
+        "for all products. If there are no products, returns 0."
+    ),
+    responses={
+        200: {"description": "Total balance calculated successfully"},
+    },
+)
+def get_total_balance(
+    db: Session = Depends(get_db),
+) -> TotalBalanceOut:
+    """
+    Endpoint to compute total balance of all products in stock.
+
+    Returns:
+        TotalBalanceOut: Object containing the numeric total. Edge case: returns 0 when no products exist.
+    """
+    total = crud_product.total_balance(db)
+    return TotalBalanceOut(total=total)
